@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -10,11 +13,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'AlliCrab',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.grey,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'AlliCrab'),
     );
   }
 }
@@ -29,38 +32,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  Color _reviewColor = Colors.blue;
-  int _colorRotation = 0;
+  late Future<int> reviewCount;
 
-  InkWell getInkSquare(String text) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _colorRotation = (_colorRotation + 1) % 5;
-          switch (_colorRotation) {
-            case 0:
-              _reviewColor = Colors.orange;
-              return;
-            case 1:
-              _reviewColor = Colors.pink;
-              return;
-            case 2:
-              _reviewColor = Colors.purple;
-              return;
-            case 3:
-              _reviewColor = Colors.teal;
-              return;
-            case 4:
-              _reviewColor = Colors.brown;
-              return;
-          }
-        });
-      },
-      child: Center(
-        child: Text(text),
-      ),
-      splashColor: _reviewColor,
-    );
+  @override
+  void initState() {
+    super.initState();
+    reviewCount = submitApi();
   }
 
   @override
@@ -69,22 +46,56 @@ class _MyHomePageState extends State<MyHomePage> {
         appBar: AppBar(
           title: Text(widget.title),
         ),
-        body: GridView.count(
-          crossAxisCount: 2,
-          children: [
-            Material(
-              child: getInkSquare('lessons'),
-              color: Colors.blue[200],
-            ),
-            Material(
-              child: getInkSquare('reviews'),
-              color: Colors.orange[200],
-            ),
-            Material(
-              child: getInkSquare('graph'),
-              color: Colors.green[200],
-            ),
-          ],
+        body: Material(
+          child: GridView.count(
+            crossAxisCount: 2,
+            children: [
+              Material(
+                child: getInkSquare('lessons'),
+                color: Colors.blue[500],
+              ),
+              Material(
+                child: FutureBuilder<int>(
+                  future: reviewCount,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return getInkSquare(snapshot.data!.toString());
+                    } else if (snapshot.hasError) {
+                      return getInkSquare('${snapshot.error}');
+                    }
+
+                    // By default, show a loading spinner.
+                    return const CircularProgressIndicator();
+                  },
+                ),
+                color: Colors.orange[500],
+              ),
+              Material(
+                child: getInkSquare('graph'),
+                color: Colors.green[500],
+              ),
+            ],
+          ),
+          color: Colors.grey,
         ));
+  }
+
+  InkWell getInkSquare(String text) {
+    return InkWell(
+      onTap: () {
+        setState(() {});
+      },
+      child: Center(
+        child: Text(text),
+      ),
+      splashColor: Colors.white,
+    );
+  }
+
+  Future<int> submitApi() async {
+    final x = await http.get(Uri.parse("https://api.wanikani.com/v2/assignments?immediately_available_for_review"),
+        headers: {"Authorization" : "Bearer 52b6d8ee-25be-4ee9-9b09-af46db697409"});
+    Map<String, dynamic> json = jsonDecode(x.body);
+    return json["total_count"];
   }
 }
