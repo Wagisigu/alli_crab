@@ -32,12 +32,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late Future<int> reviewCount;
+  late Future<String> reviewCount;
+  late Future<String> lessonCount;
 
   @override
   void initState() {
     super.initState();
-    reviewCount = submitApi();
+    reviewCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_review",["total_count"]);
+    lessonCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons",["total_count"]);
   }
 
   @override
@@ -51,23 +53,11 @@ class _MyHomePageState extends State<MyHomePage> {
             crossAxisCount: 2,
             children: [
               Material(
-                child: getInkSquare('lessons'),
+                child: getSquare(lessonCount),
                 color: Colors.blue[500],
               ),
               Material(
-                child: FutureBuilder<int>(
-                  future: reviewCount,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      return getInkSquare(snapshot.data!.toString());
-                    } else if (snapshot.hasError) {
-                      return getInkSquare('${snapshot.error}');
-                    }
-
-                    // By default, show a loading spinner.
-                    return const CircularProgressIndicator();
-                  },
-                ),
+                child: getSquare(reviewCount),
                 color: Colors.orange[500],
               ),
               Material(
@@ -85,17 +75,36 @@ class _MyHomePageState extends State<MyHomePage> {
       onTap: () {
         setState(() {});
       },
-      child: Center(
+      child: FittedBox(
+        fit: BoxFit.contain,
         child: Text(text),
       ),
       splashColor: Colors.white,
     );
   }
 
-  Future<int> submitApi() async {
-    final x = await http.get(Uri.parse("https://api.wanikani.com/v2/assignments?immediately_available_for_review"),
+  FutureBuilder<String> getSquare(Future<String> toCome) {
+    return FutureBuilder<String>(
+    future: toCome,
+    builder: (context, snapshot) {
+      if (snapshot.hasData) {
+        return getInkSquare(snapshot.data!.toString());
+      } else if (snapshot.hasError) {
+        return getInkSquare('${snapshot.error}');
+      }
+      // By default, show a loading spinner.
+      return const CircularProgressIndicator();
+      },
+    );
+  }
+
+  Future<String> submitApiGet(String url, var path) async {
+    final x = await http.get(Uri.parse(url),
         headers: {"Authorization" : "Bearer 52b6d8ee-25be-4ee9-9b09-af46db697409"});
-    Map<String, dynamic> json = jsonDecode(x.body);
-    return json["total_count"];
+    var json = jsonDecode(x.body);
+    for (String s in path) {
+      json = json[s];
+    }
+    return json.toString();
   }
 }
