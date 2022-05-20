@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.grey,
       ),
-      home: LoginPage(),
+      home: const LoginPage(),
       //home: const MyHomePage(title: 'AlliCrab'),
     );
   }
