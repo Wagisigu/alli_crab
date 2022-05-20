@@ -17,15 +17,76 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.grey,
       ),
-      home: const MyHomePage(title: 'AlliCrab'),
+      home: LoginPage(),
+      //home: const MyHomePage(title: 'AlliCrab'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+class LoginPage extends StatefulWidget {
+  const LoginPage({Key? key}) : super(key: key);
 
-  final String title;
+  @override
+  State<StatefulWidget> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+
+  final apiTextFieldController = TextEditingController();
+  String response = '';
+
+  @override
+  void dispose() {
+    apiTextFieldController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Allicrab'),
+      ),
+      body: Material(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(response,
+              style: const TextStyle(
+                color: Colors.red
+              ),
+            ),
+            TextField(
+              controller: apiTextFieldController,
+              decoration: const InputDecoration(
+                  hintText: 'Enter your api key'
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                final x = await http.get(Uri.parse('https://api.wanikani.com/v2/assignments'),
+                    headers: {"Authorization" : "Bearer "+apiTextFieldController.text});
+                var json = jsonDecode(x.body);
+                if (json['object'].toString() == 'collection') {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => MyHomePage(apiKey: apiTextFieldController.text)));
+                } else {
+                  setState(() => {response = 'Invalid Key'});
+                }
+              },
+              child: const Text('Submit'),
+            )
+          ],
+        )
+      ),
+    );
+  }
+
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key, required this.apiKey}) : super(key: key);
+
+  final String apiKey;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -38,15 +99,15 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    reviewCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_review",["total_count"]);
-    lessonCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons",["total_count"]);
+    reviewCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_review",["total_count"], widget.apiKey);
+    lessonCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons",["total_count"], widget.apiKey);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
+          title: const Text('Allicrab'),
         ),
         body: Material(
           child: GridView.count(
@@ -72,8 +133,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   InkWell getInkSquare(String text) {
     return InkWell(
-      onTap: () {
-        setState(() {});
+      onTap: () => {
+        setState(() => {})
       },
       child: FittedBox(
         fit: BoxFit.contain,
@@ -98,9 +159,9 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<String> submitApiGet(String url, var path) async {
+  Future<String> submitApiGet(String url, var path, String apiKey) async {
     final x = await http.get(Uri.parse(url),
-        headers: {"Authorization" : "Bearer 52b6d8ee-25be-4ee9-9b09-af46db697409"});
+        headers: {"Authorization" : "Bearer "+apiKey});
     var json = jsonDecode(x.body);
     for (String s in path) {
       json = json[s];
