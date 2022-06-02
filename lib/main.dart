@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,19 +13,45 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    late Future<SharedPreferences> prefs = getPrefs();
     return MaterialApp(
       title: 'AlliCrab',
       theme: ThemeData(
         primarySwatch: Colors.grey,
       ),
-      home: const LoginPage(),
+      home: getWelcome(prefs),
       //home: const MyHomePage(title: 'AlliCrab'),
     );
+  }
+
+  FutureBuilder<SharedPreferences> getWelcome(Future<SharedPreferences> toCome) {
+    return FutureBuilder<SharedPreferences>(
+      future: toCome,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          SharedPreferences? prefs = snapshot.data;
+          String? apiKey = prefs?.getString('apiKey');
+          if (apiKey != null) {
+            return MyHomePage(apiKey: apiKey);
+          } else if (prefs != null) {
+            return LoginPage(prefs: prefs);
+          }
+        }
+        // By default, show a loading spinner.
+        return const CircularProgressIndicator();
+      },
+    );
+  }
+  
+  Future<SharedPreferences> getPrefs() async {
+    return await SharedPreferences.getInstance();
   }
 }
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({Key? key, required this.prefs}) : super(key: key);
+
+  final SharedPreferences prefs;
 
   @override
   State<StatefulWidget> createState() => _LoginPageState();
@@ -68,6 +95,7 @@ class _LoginPageState extends State<LoginPage> {
                     headers: {"Authorization" : "Bearer "+apiTextFieldController.text});
                 var json = jsonDecode(x.body);
                 if (json['object'].toString() == 'collection') {
+                  widget.prefs.setString('apiKey', apiTextFieldController.text);
                   Navigator.push(context, MaterialPageRoute(builder: (context) => MyHomePage(apiKey: apiTextFieldController.text)));
                 } else {
                   setState(() => {response = 'Invalid Key'});
