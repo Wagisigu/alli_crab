@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -156,10 +157,16 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   InkWell getInkSquare(String text) {
+    FutureOr onGoBack(dynamic value) {
+      reviewCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_review",["total_count"], widget.apiKey);
+      lessonCount = submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons",["total_count"], widget.apiKey);
+      setState(() => {});
+    }
     return InkWell(
       onTap: () => {
         setState(() => {}),
-        Navigator.push(context, MaterialPageRoute(builder: (context) => LearnPage(apiKey: widget.apiKey)))
+        if (text.contains('lessons'))Navigator.push(context, MaterialPageRoute(builder: (context) => LessonPage(apiKey: widget.apiKey))).then(onGoBack)
+        else Navigator.push(context, MaterialPageRoute(builder: (context) => ReviewPage(apiKey: widget.apiKey))).then(onGoBack)
       },
       child: FittedBox(
         fit: BoxFit.contain,
@@ -197,16 +204,16 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class LearnPage extends StatefulWidget {
-  const LearnPage({Key? key, required this.apiKey}) : super(key: key);
+class ReviewPage extends StatefulWidget {
+  const ReviewPage({Key? key, required this.apiKey}) : super(key: key);
 
   final String apiKey;
 
   @override
-  State<StatefulWidget> createState() => _LearnPageState();
+  State<StatefulWidget> createState() => _ReviewPageState();
 }
 
-class _LearnPageState extends State<LearnPage> {
+class _ReviewPageState extends State<ReviewPage> {
 
   final answerTextFieldController = TextEditingController();
   late String seen;
@@ -260,6 +267,91 @@ class _LearnPageState extends State<LearnPage> {
   
   Future<String> getWord() async {
     return submitApiGet("https://api.wanikani.com/v2/assignments", ['data',0,'data','subject_id'], widget.apiKey);
+  }
+
+  Future<String> getImage(Future<String> url) async {
+    String u = '';
+    await url.then((value) => u = value);
+    return submitApiGet('https://api.wanikani.com/v2/subjects/'+u, ['data','characters'], widget.apiKey);
+
+  }
+
+  Future<String> submitApiGet(String url, var path, String apiKey) async {
+    final x = await http.get(Uri.parse(url),
+        headers: {"Authorization" : "Bearer "+apiKey});
+    var json = jsonDecode(x.body);
+    for (var s in path) {
+      json = json[s];
+    }
+    return json.toString();
+  }
+}
+
+
+class LessonPage extends StatefulWidget {
+  const LessonPage({Key? key, required this.apiKey}) : super(key: key);
+
+  final String apiKey;
+
+  @override
+  State<StatefulWidget> createState() => _LessonPageState();
+}
+
+class _LessonPageState extends State<LessonPage> {
+
+  late String seen;
+  late String id;
+
+  @override
+  Widget build(BuildContext context) {
+    final builder = FutureBuilder(
+      future: Future.wait([getImage(getWord()),getId()]),
+      builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+        if (snapshot.hasData) {
+          String? character = snapshot.data![0];
+          String? id = snapshot.data![1];
+          if (character != null) {
+            this.id = id!;
+            seen = character;
+            return Text(character,
+            textAlign: TextAlign.center);
+          }
+          return const Text('done');
+        }
+        return const CircularProgressIndicator();
+      },
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Allicrab'),
+      ),
+      body: Material(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              builder,
+              TextButton(
+                  onPressed: () async {
+                    http.put(Uri.parse('https://api.wanikani.com/v2/assignments/'+id+'/start'), headers: {"Authorization" : "Bearer "+ widget.apiKey});
+                    setState(() => {build(context)});
+                  },
+                  child: const Text('Continue',
+                  textAlign: TextAlign.center)
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String> getWord() async {
+    return submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true", ['data',0,'data','subject_id'], widget.apiKey);
+  }
+
+  Future<String> getId() async {
+    return submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true", ['data',0,'id'], widget.apiKey);
   }
 
   Future<String> getImage(Future<String> url) async {
