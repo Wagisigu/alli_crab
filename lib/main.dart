@@ -299,22 +299,28 @@ class LessonPage extends StatefulWidget {
 
 class _LessonPageState extends State<LessonPage> {
 
-  late String seen;
   late String id;
 
   @override
   Widget build(BuildContext context) {
-    final builder = FutureBuilder(
-      future: Future.wait([getImage(getWord()),getId()]),
-      builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+    final builder = FutureBuilder<List<dynamic>>(
+      future: getData(),
+      builder: (context, snapshot) {
         if (snapshot.hasData) {
-          String? character = snapshot.data![0];
-          String? id = snapshot.data![1];
-          if (character != null) {
-            this.id = id!;
-            seen = character;
-            return Text(character,
-            textAlign: TextAlign.center);
+          List<dynamic>? js = snapshot.data;
+          if (js != null) {
+            dynamic json1 = js[0];
+            dynamic json2 = js[1];
+            //id = json1['data'][0]['id'];
+            return Column(
+                children: [
+                  Text(json2['data']['characters'].toString(),
+                      textAlign: TextAlign.center),
+                  Text(json2['object'].toString()),
+                  //Text(json2['data']['meanings'][0]['meaning'].toString()),
+                  Text(json2['data']['meaning_mnemonic'].toString())
+                ]
+            );
           }
           return const Text('done');
         }
@@ -346,28 +352,14 @@ class _LessonPageState extends State<LessonPage> {
     );
   }
 
-  Future<String> getWord() async {
-    return submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true", ['data',0,'data','subject_id'], widget.apiKey);
-  }
-
-  Future<String> getId() async {
-    return submitApiGet("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true", ['data',0,'id'], widget.apiKey);
-  }
-
-  Future<String> getImage(Future<String> url) async {
-    String u = '';
-    await url.then((value) => u = value);
-    return submitApiGet('https://api.wanikani.com/v2/subjects/'+u, ['data','characters'], widget.apiKey);
-
-  }
-
-  Future<String> submitApiGet(String url, var path, String apiKey) async {
-    final x = await http.get(Uri.parse(url),
-        headers: {"Authorization" : "Bearer "+apiKey});
-    var json = jsonDecode(x.body);
-    for (var s in path) {
-      json = json[s];
-    }
-    return json.toString();
+  Future<List<dynamic>> getData() async {
+    final result1 = await http.get(Uri.parse("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true"),
+        headers: {"Authorization" : "Bearer "+widget.apiKey});
+    var json1 = jsonDecode(result1.body);
+    String id = json1['data'][0]['data']['subject_id'].toString();
+    final result2 = await http.get(Uri.parse('https://api.wanikani.com/v2/subjects/'+id),
+        headers: {"Authorization" : "Bearer "+widget.apiKey});
+    var json2 = jsonDecode(result2.body);
+    return [json1, json2];
   }
 }
