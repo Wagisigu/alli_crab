@@ -303,22 +303,22 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   Widget build(BuildContext context) {
-    final builder = FutureBuilder<List<dynamic>>(
+    final builder = FutureBuilder<List<String>>(
       future: getData(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          List<dynamic>? js = snapshot.data;
+          List<String>? js = snapshot.data;
           if (js != null) {
-            dynamic json1 = js[0];
-            dynamic json2 = js[1];
-            //id = json1['data'][0]['id'];
+            var json1 = jsonDecode(js[0]) as Map<String, dynamic>;
+            var json2 = jsonDecode(js[1]) as Map<String, dynamic>;
+            id = retrieve(json1,['data',0,'id']);
             return Column(
                 children: [
-                  Text(json2['data']['characters'].toString(),
+                  Text(retrieve(json2,['data','characters']),
                       textAlign: TextAlign.center),
-                  Text(json2['object'].toString()),
-                  //Text(json2['data']['meanings'][0]['meaning'].toString()),
-                  Text(json2['data']['meaning_mnemonic'].toString())
+                  Text(retrieve(json2,['object'])),
+                  Text(retrieve(json2,['data','meanings',0,'meaning'])),
+                  Text(retrieve(json2,['data','meaning_mnemonic']))
                 ]
             );
           }
@@ -352,14 +352,20 @@ class _LessonPageState extends State<LessonPage> {
     );
   }
 
-  Future<List<dynamic>> getData() async {
+  Future<List<String>> getData() async {
     final result1 = await http.get(Uri.parse("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true"),
         headers: {"Authorization" : "Bearer "+widget.apiKey});
-    var json1 = jsonDecode(result1.body);
+    dynamic json1 = jsonDecode(result1.body);
     String id = json1['data'][0]['data']['subject_id'].toString();
     final result2 = await http.get(Uri.parse('https://api.wanikani.com/v2/subjects/'+id),
         headers: {"Authorization" : "Bearer "+widget.apiKey});
-    var json2 = jsonDecode(result2.body);
-    return [json1, json2];
+    return [result1.body, result2.body];
+  }
+
+  String retrieve(dynamic json, var arr) {
+    for (var x in arr) {
+      json = json[x];
+    }
+    return json.toString();
   }
 }
