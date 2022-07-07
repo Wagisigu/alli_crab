@@ -144,11 +144,11 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Material(
                 child: getSquare("lessons\n", lessonCount),
-                color: Colors.blue[500],
+                color: const Color(0xFFFF00AA),
               ),
               Material(
                 child: getSquare("reviews\n", reviewCount),
-                color: Colors.orange[500],
+                color: const Color(0xFF00AAFF),
               ),
             ],
           ),
@@ -171,7 +171,10 @@ class _MyHomePageState extends State<MyHomePage> {
       child: FittedBox(
         fit: BoxFit.contain,
         child: Text(text,
-        textAlign: TextAlign.center
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white
+          ),
         ),
       ),
       splashColor: Colors.white,
@@ -339,8 +342,7 @@ class _LessonPageState extends State<LessonPage> {
               builder,
               TextButton(
                   onPressed: () async {
-                    http.put(Uri.parse('https://api.wanikani.com/v2/assignments/'+id+'/start'), headers: {"Authorization" : "Bearer "+ widget.apiKey});
-                    setState(() => {build(context)});
+                    http.put(Uri.parse('https://api.wanikani.com/v2/assignments/'+id+'/start'), headers: {"Authorization" : "Bearer "+ widget.apiKey}).then(refresh);
                   },
                   child: const Text('Continue',
                   textAlign: TextAlign.center)
@@ -350,6 +352,10 @@ class _LessonPageState extends State<LessonPage> {
         ),
       ),
     );
+  }
+
+  FutureOr refresh(dynamic value) {
+    setState(() => {});
   }
 
   Future<List<String>> getData() async {
