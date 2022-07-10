@@ -220,6 +220,11 @@ class _ReviewPageState extends State<ReviewPage> {
 
   final answerTextFieldController = TextEditingController();
   late String seen;
+  late String id;
+
+  Text result = const Text("");
+  int im = 0;
+  int ir = 0;
 
   @override
   void dispose() {
@@ -229,6 +234,37 @@ class _ReviewPageState extends State<ReviewPage> {
 
   @override
   Widget build(BuildContext context) {
+    final builder = FutureBuilder<List<String>>(
+      future: getData(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          List<String>? js = snapshot.data;
+          if (js != null) {
+            var json1 = jsonDecode(js[0]) as Map<String, dynamic>;
+            var json2 = jsonDecode(js[1]) as Map<String, dynamic>;
+            id = retrieve(json1,['data',0,'id']);
+            seen = retrieve(json2, ['data','meanings',0,'meaning']);
+            return Column(
+                children: [
+                  Text(retrieve(json2,['object']),
+                      style: const TextStyle(
+                          fontSize: 24
+                      )),
+                  Text(retrieve(json2,['data','characters']),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 24
+                    )
+                  )
+                ]
+            );
+          }
+          return const Text('done');
+        }
+        return const CircularProgressIndicator();
+      },
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Allicrab'),
@@ -237,54 +273,79 @@ class _ReviewPageState extends State<ReviewPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FutureBuilder<String>(
-              future: getImage(getWord()),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  String? s = snapshot.data;
-                  if (s != null) {
-                    seen = s;
-                    return Text(s);
-                  }
-                  return const Text('done');
-                }
-                return const CircularProgressIndicator();
-              },
-            ),
+            result,
+            builder,
             TextField(
               controller: answerTextFieldController,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                hintText: 'meaning'
+              ),
             ),
             TextButton(
               onPressed: () async {
-                if (answerTextFieldController.text == seen) {
-
+                if (answerTextFieldController.text.toLowerCase() == seen.toLowerCase()) {
+                  setState(() {
+                    result = const Text('Correct',
+                        style: TextStyle(color: Colors.green));
+                  });
+                  answerTextFieldController.clear();
+                  http.post(Uri.parse("https://api.wanikani.com/v2/reviews"),
+                    headers: {
+                      "Authorization" : "Bearer "+widget.apiKey,
+                      "Content-Type": "application/json; charset=utf-8"
+                    },
+                    body: jsonEncode(<String, Map<String, int>>{
+                      'review': <String, int>{
+                        'assignment_id': int.parse(id),
+                        'incorrect_meaning_answers': im,
+                        'incorrect_reading_answers': ir
+                    }
+                  })).then(refresh);
+                  im = 0;
+                  ir = 0;
+                } else {
+                  im++;
+                  setState(() {
+                    result = const Text('Incorrect',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 24
+                      )
+                    );
+                  });
                 }
               },
-              child: const Text('Submit')
+              child: const Text('Submit',
+                  style: TextStyle(
+                      fontSize: 24
+                  ))
             )
           ],
         ),
       ),
     );
   }
-  
-  Future<String> getWord() async {
-    return submitApiGet("https://api.wanikani.com/v2/assignments", ['data',0,'data','subject_id'], widget.apiKey);
+
+  FutureOr refresh(dynamic value) {
+    setState(() => {});
   }
 
-  Future<String> getImage(Future<String> url) async {
-    String u = '';
-    await url.then((value) => u = value);
-    return submitApiGet('https://api.wanikani.com/v2/subjects/'+u, ['data','characters'], widget.apiKey);
-
+  Future<List<String>> getData() async {
+    DateTime now = DateTime.now();
+    final result1 = await http.get(Uri.parse(
+        "https://api.wanikani.com/v2/assignments?in_review=true&available_before=${now.toIso8601String()}"),
+        headers: {"Authorization" : "Bearer "+widget.apiKey});
+    dynamic json1 = jsonDecode(result1.body);
+    String id = json1['data'][0]['data']['subject_id'].toString();
+    final result2 = await http.get(Uri.parse('https://api.wanikani.com/v2/subjects/'+id),
+        headers: {"Authorization" : "Bearer "+widget.apiKey});
+    return [result1.body, result2.body];
   }
 
-  Future<String> submitApiGet(String url, var path, String apiKey) async {
-    final x = await http.get(Uri.parse(url),
-        headers: {"Authorization" : "Bearer "+apiKey});
-    var json = jsonDecode(x.body);
-    for (var s in path) {
-      json = json[s];
+  String retrieve(dynamic json, var arr) {
+    for (var x in arr) {
+      json = json[x];
     }
     return json.toString();
   }
@@ -318,10 +379,22 @@ class _LessonPageState extends State<LessonPage> {
             return Column(
                 children: [
                   Text(retrieve(json2,['data','characters']),
-                      textAlign: TextAlign.center),
-                  Text(retrieve(json2,['object'])),
-                  Text(retrieve(json2,['data','meanings',0,'meaning'])),
-                  Text(retrieve(json2,['data','meaning_mnemonic']))
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 24
+                      )),
+                  Text(retrieve(json2,['object']),
+                      style: const TextStyle(
+                          fontSize: 24
+                      )),
+                  Text(retrieve(json2,['data','meanings',0,'meaning']),
+                      style: const TextStyle(
+                          fontSize: 24
+                      )),
+                  Text(retrieve(json2,['data','meaning_mnemonic']),
+                      style: const TextStyle(
+                          fontSize: 24
+                      ))
                 ]
             );
           }
