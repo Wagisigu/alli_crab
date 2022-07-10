@@ -328,7 +328,9 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   FutureOr refresh(dynamic value) {
-    setState(() => {});
+    setState(() => {
+      result = const Text('')
+    });
   }
 
   Future<List<String>> getData() async {
