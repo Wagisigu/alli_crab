@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
@@ -226,9 +227,10 @@ class _ReviewPageState extends State<ReviewPage> {
 
   bool shown = false;
   bool next = true;
+  bool correct = false;
   Text result = const Text("");
-  int im = 0;
   int ir = 0;
+  Map<int, int> meaningsIncorrect = HashMap<int, int>();
 
   @override
   void dispose() {
@@ -247,6 +249,7 @@ class _ReviewPageState extends State<ReviewPage> {
             var json1 = jsonDecode(js[0]) as Map<String, dynamic>;
             var json2 = jsonDecode(js[1]) as Map<String, dynamic>;
             id = retrieve(json1,['data',chosen,'id']);
+            meaningsIncorrect.putIfAbsent(chosen, () => 0);
             seen = retrieveArray(json2, ['data','meanings'],['meaning']);
             return Column(
                 children: [
@@ -269,9 +272,18 @@ class _ReviewPageState extends State<ReviewPage> {
       },
     );
 
+    TextField answerField = TextField(
+      controller: answerTextFieldController,
+      textAlign: TextAlign.center,
+      decoration: const InputDecoration(
+          hintText: 'meaning'
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Allicrab'),
+        backgroundColor: const Color(0xffe8e8e8),
       ),
       body: Material(
         child: Column(
@@ -279,13 +291,7 @@ class _ReviewPageState extends State<ReviewPage> {
           children: [
             result,
             builder,
-            TextField(
-              controller: answerTextFieldController,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                hintText: 'meaning'
-              ),
-            ),
+            answerField,
             getButton()
           ],
         ),
@@ -297,7 +303,7 @@ class _ReviewPageState extends State<ReviewPage> {
     return (!shown?
     TextButton(
         onPressed: () async {
-          bool correct = false;
+          correct = false;
           for (String s in seen) {
             if (answerTextFieldController.text.toLowerCase() ==
                 s.toLowerCase()) {
@@ -313,9 +319,8 @@ class _ReviewPageState extends State<ReviewPage> {
                       fontSize: 24
                   ));
             });
-            shown = true;
           } else {
-            im++;
+            meaningsIncorrect.update(chosen, (value) => value+1);
             setState(() {
               result = Text(seen.toString(),
                   style: const TextStyle(
@@ -325,6 +330,7 @@ class _ReviewPageState extends State<ReviewPage> {
               );
             });
           }
+          shown = true;
         },
         child: const Text('Submit',
             textAlign: TextAlign.center)
@@ -334,21 +340,24 @@ class _ReviewPageState extends State<ReviewPage> {
       onPressed: () async {
         next = true;
         shown = false;
-        answerTextFieldController.clear();
-        http.post(Uri.parse("https://api.wanikani.com/v2/reviews"),
-            headers: {
-              "Authorization" : "Bearer "+widget.apiKey,
-              "Content-Type": "application/json; charset=utf-8"
-            },
-            body: jsonEncode(<String, Map<String, int>>{
-              'review': <String, int>{
-                'assignment_id': int.parse(id),
-                'incorrect_meaning_answers': im,
-                'incorrect_reading_answers': ir
-              }
-            })).then(refresh);
-        im = 0;
-        ir = 0;
+        if (correct) {
+          answerTextFieldController.clear();
+          http.post(Uri.parse("https://api.wanikani.com/v2/reviews"),
+              headers: {
+                "Authorization": "Bearer " + widget.apiKey,
+                "Content-Type": "application/json; charset=utf-8"
+              },
+              body: jsonEncode(<String, Map<String, int>>{
+                'review': <String, int>{
+                  'assignment_id': int.parse(id),
+                  'incorrect_meaning_answers': meaningsIncorrect.putIfAbsent(
+                      chosen, () => 0),
+                  'incorrect_reading_answers': ir
+                }
+              })).then(refresh);
+          meaningsIncorrect.remove(chosen);
+          ir = 0;
+        }
       },
       child: const Text('Continue',
         textAlign: TextAlign.center)
@@ -457,11 +466,11 @@ class _LessonPageState extends State<LessonPage> {
       },
     );
 
-    TextButton submitButton = TextButton(
+    TextButton continueButton = TextButton(
         onPressed: () async {
           http.put(Uri.parse('https://api.wanikani.com/v2/assignments/'+id+'/start'), headers: {"Authorization" : "Bearer "+ widget.apiKey}).then(refresh);
         },
-        child: const Text('Submit',
+        child: const Text('Continue',
             textAlign: TextAlign.center)
     );
 
@@ -475,7 +484,7 @@ class _LessonPageState extends State<LessonPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               builder,
-              submitButton
+              continueButton
             ],
           ),
         ),
