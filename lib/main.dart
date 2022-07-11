@@ -340,8 +340,8 @@ class _ReviewPageState extends State<ReviewPage> {
       onPressed: () async {
         next = true;
         shown = false;
+        answerTextFieldController.clear();
         if (correct) {
-          answerTextFieldController.clear();
           http.post(Uri.parse("https://api.wanikani.com/v2/reviews"),
               headers: {
                 "Authorization": "Bearer " + widget.apiKey,
@@ -357,6 +357,8 @@ class _ReviewPageState extends State<ReviewPage> {
               })).then(refresh);
           meaningsIncorrect.remove(chosen);
           ir = 0;
+        } else {
+          refresh(null);
         }
       },
       child: const Text('Continue',
