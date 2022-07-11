@@ -373,7 +373,7 @@ class _ReviewPageState extends State<ReviewPage> {
   Future<List<String>> getData() async {
     DateTime now = DateTime.now();
     final result1 = await http.get(Uri.parse(
-        "https://api.wanikani.com/v2/assignments?in_review=true&available_before=${now.toIso8601String()}"),
+        "https://api.wanikani.com/v2/assignments?in_review=true&available_before=${now.toUtc().toIso8601String()}"),
         headers: {"Authorization" : "Bearer "+widget.apiKey});
     dynamic json1 = jsonDecode(result1.body);
     if (next) {
