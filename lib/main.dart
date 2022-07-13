@@ -220,11 +220,15 @@ class ReviewPage extends StatefulWidget {
 
 class _ReviewPageState extends State<ReviewPage> {
 
-  final answerTextFieldController = TextEditingController();
-  late List<String> seen;
+  late List<dynamic> seen;
+  late Set<dynamic> reviewSubjectsIds;
   late String id;
   late int chosen;
+  late http.Response result1s;
 
+  final answerTextFieldController = TextEditingController();
+
+  bool resulted = false;
   bool shown = false;
   bool next = true;
   bool correct = false;
@@ -248,7 +252,8 @@ class _ReviewPageState extends State<ReviewPage> {
           if (js != null) {
             var json1 = jsonDecode(js[0]) as Map<String, dynamic>;
             var json2 = jsonDecode(js[1]) as Map<String, dynamic>;
-            id = retrieve(json1,['data',chosen,'id']);
+            reviewSubjectsIds = retrieveSet(json1, ['data'],['id']);
+            id = reviewSubjectsIds.elementAt(chosen);
             meaningsIncorrect.putIfAbsent(chosen, () => 0);
             seen = retrieveArray(json2, ['data','meanings'],['meaning']);
             return Column(
@@ -374,9 +379,16 @@ class _ReviewPageState extends State<ReviewPage> {
 
   Future<List<String>> getData() async {
     DateTime now = DateTime.now();
-    final result1 = await http.get(Uri.parse(
+    http.Response result1;
+    if (!resulted) {
+      resulted = true;
+      result1 = await http.get(Uri.parse(
         "https://api.wanikani.com/v2/assignments?in_review=true&available_before=${now.toUtc().toIso8601String()}"),
         headers: {"Authorization" : "Bearer "+widget.apiKey});
+      result1s = result1;
+    } else {
+      result1 = result1s;
+    }
     dynamic json1 = jsonDecode(result1.body);
     if (next) {
       next = false;
@@ -389,20 +401,31 @@ class _ReviewPageState extends State<ReviewPage> {
     return [result1.body, result2.body];
   }
 
-  String retrieve(dynamic json, var arr) {
+  dynamic retrieve(dynamic json, var arr) {
     for (var x in arr) {
       json = json[x];
     }
     return json.toString();
   }
 
-  List<String> retrieveArray(dynamic json, var arr1, var arr2) {
+  List<dynamic> retrieveArray(dynamic json, var arr1, var arr2) {
     for (var x in arr1) {
       json = json[x];
     }
-    List<String> ans = List.filled(json.length, "", growable: false);
+    List<dynamic> ans = List.filled(json.length, "", growable: false);
     for (int i = 0; i < json.length; i++) {
       ans[i] = retrieve(json[i], arr2);
+    }
+    return ans;
+  }
+
+  Set<dynamic> retrieveSet(dynamic json, var arr1, var arr2) {
+    for (var x in arr1) {
+      json = json[x];
+    }
+    Set<dynamic> ans = HashSet();
+    for (int i = 0; i < json.length; i++) {
+      ans.add(retrieve(json[i], arr2));
     }
     return ans;
   }
