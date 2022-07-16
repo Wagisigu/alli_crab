@@ -232,6 +232,7 @@ class _ReviewPageState extends State<ReviewPage> {
   bool shown = false;
   bool next = true;
   bool correct = false;
+  DateTime lastTime = DateTime.now();
   Text result = const Text("");
   int ir = 0;
   Map<int, int> meaningsIncorrect = HashMap<int, int>();
@@ -244,6 +245,7 @@ class _ReviewPageState extends State<ReviewPage> {
 
   @override
   Widget build(BuildContext context) {
+    lastTime.subtract(const Duration(hours: 1));
     final builder = FutureBuilder<List<String>>(
       future: getData(),
       builder: (context, snapshot) {
@@ -380,7 +382,7 @@ class _ReviewPageState extends State<ReviewPage> {
   Future<List<String>> getData() async {
     DateTime now = DateTime.now();
     http.Response result1;
-    if (!resulted) {
+    if (lastTime.hour<now.hour||lastTime.day<now.day||lastTime.month<now.day||lastTime.year<now.year) {
       resulted = true;
       result1 = await http.get(Uri.parse(
         "https://api.wanikani.com/v2/assignments?in_review=true&available_before=${now.toUtc().toIso8601String()}"),
@@ -389,6 +391,7 @@ class _ReviewPageState extends State<ReviewPage> {
     } else {
       result1 = result1s;
     }
+    lastTime = now;
     dynamic json1 = jsonDecode(result1.body);
     if (next) {
       next = false;
@@ -396,9 +399,17 @@ class _ReviewPageState extends State<ReviewPage> {
       chosen = Random().nextInt(len);
     }
     String id = json1['data'][chosen]['data']['subject_id'].toString();
-    final result2 = await http.get(Uri.parse('https://api.wanikani.com/v2/subjects/'+id),
-        headers: {"Authorization" : "Bearer "+widget.apiKey});
-    return [result1.body, result2.body];
+    SharedPreferences sp = await SharedPreferences.getInstance();
+    String? temp = sp.getString(id);
+    if (temp==null) {
+      final result2 = await http.get(
+          Uri.parse('https://api.wanikani.com/v2/subjects/' + id),
+          headers: {"Authorization": "Bearer " + widget.apiKey});
+      SharedPreferences.getInstance().then((value) =>
+          value.setString(id, result2.body));
+      temp = result2.body;
+    }
+    return [result1.body, temp];
   }
 
   dynamic retrieve(dynamic json, var arr) {
