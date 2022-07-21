@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -19,14 +21,17 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   Widget build(BuildContext context) {
-    final builder = FutureBuilder<List<String>>(
+    final builder = FutureBuilder<List<List<String>>>(
       future: getData(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          List<String>? js = snapshot.data;
+          List<List<String>>? js = snapshot.data;
           if (js != null) {
-            var json1 = jsonDecode(js[0]) as Map<String, dynamic>;
-            var json2 = jsonDecode(js[1]) as Map<String, dynamic>;
+            var json1 = jsonDecode(js[0][0]) as Map<String, dynamic>;
+            List<dynamic> l = List.filled(js[1].length, "", growable: false);
+            for (int i = 0; i < js[1].length; i++) {
+              l[i] = jsonDecode(js[1][i]);
+            }
             id = retrieve(json1,['data',0,'id']);
             return Column(
                 children: [
@@ -86,14 +91,18 @@ class _LessonPageState extends State<LessonPage> {
     setState(() => {});
   }
 
-  Future<List<String>> getData() async {
+  Future<List<List<String>>> getData() async {
     final result1 = await http.get(Uri.parse("https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true"),
         headers: {"Authorization" : "Bearer "+widget.apiKey});
     dynamic json1 = jsonDecode(result1.body);
-    String id = json1['data'][0]['data']['subject_id'].toString();
-    final result2 = await http.get(Uri.parse('https://api.wanikani.com/v2/subjects/'+id),
-        headers: {"Authorization" : "Bearer "+widget.apiKey});
-    return [result1.body, result2.body];
+    List<String> ids = retrieveArray(json1, ['data'], ['data','subject_id'], 5);
+    List<String> bods = List.filled(ids.length, "", growable: false);
+    for (int i = 0; i < ids.length; i++) {
+      final temp = await http.get(Uri.parse('https://api.wanikani.com/v2/subjects/'+ids[i]),
+          headers: {"Authorization" : "Bearer "+widget.apiKey});
+      bods[i] = temp.body;
+    }
+    return [[result1.body], bods];
   }
 
   String retrieve(dynamic json, var arr) {
@@ -101,5 +110,34 @@ class _LessonPageState extends State<LessonPage> {
       json = json[x];
     }
     return json.toString();
+  }
+
+  List<String> retrieveArray(dynamic json, var arr1, var arr2, int limit) {
+    for (var x in arr1) {
+      json = json[x];
+    }
+    List<String> ans = List.filled(min(json.length,limit), "", growable: false);
+    for (int i = 0; i < min(json.length,limit); i++) {
+      ans[i] = retrieve(json[i], arr2);
+    }
+    return ans;
+  }
+
+  Set<dynamic> retrieveSet(dynamic json, var arr1, var arr2) {
+    for (var x in arr1) {
+      json = json[x];
+    }
+    Set<dynamic> ans = HashSet();
+    for (int i = 0; i < json.length; i++) {
+      ans.add(retrieve(json[i], arr2));
+    }
+    return ans;
+  }
+
+  int retrieveSize(dynamic json, var arr) {
+    for (var x in arr) {
+      json = json[x];
+    }
+    return json.length;
   }
 }
